@@ -18,7 +18,7 @@ DB_CONFIG = {
     "password": "AVNS_dsQHTSc114xvgwOErps",        
     "database": "defaultdb",
     "autocommit": True,
-    "ssl_ca": ""
+    "ssl_disabled": True
 }
 
 def get_connection():
