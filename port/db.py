@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import streamlit as st
 
 # Supabase Connection String එක (Password එක ඇතුළත් කර ඇත)
-DB_URI = "postgresql://postgres:Smart_port123@db.zmkrkrfdfjddlikziocg.supabase.co:5432/postgres"
+DB_URI = "postgresql://postgres:Smart_port123@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
 
 def get_connection():
     try:
