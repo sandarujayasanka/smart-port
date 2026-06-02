@@ -14,7 +14,7 @@ import streamlit as st
 DB_CONFIG = {
     "host": "aws-0-ap-southeast-1.pooler.supabase.com",
     "port": 6543,
-    "user": "postgres.zmkrkrfdfjddlikziocg",  # මෙන්න මේකෙන් Project ID එක ඔටෝම අඳුනගන්නවා!
+    "user": "postgres",  # මෙන්න මේකෙන් Project ID එක ඔටෝම අඳුනගන්නවා!
     "password": "Smart_port123",
     "database": "postgres"
 }
