@@ -206,12 +206,15 @@ if is_admin:
 
         st.markdown('<div class="section-label" style="padding-top:24px">All Users</div>', unsafe_allow_html=True)
 
-        conn = get_connection()
-        if conn:
-            cur = conn.cursor(dictionary=True)
-            cur.execute("SELECT id, full_name, email, role, is_active, last_login FROM users ORDER BY created_at DESC")
-            all_users = cur.fetchall()
-            conn.close()
+        # 💡 [SUPABASE UPDATE] Get users list using Supabase client API
+        supabase = get_supabase_client()
+        if supabase:
+            try:
+                res = supabase.table("users").select("id, full_name, email, role, is_active, last_login").order("created_at", descending=True).execute()
+                all_users = res.data
+            except Exception as e:
+                st.error(f"Failed to fetch users: {e}")
+                all_users = []
 
             for u in all_users:
                 rc = "#a78bfa" if u["role"] == "admin" else "#4ade80"
@@ -237,12 +240,13 @@ if is_admin:
                     if u["id"] != user["id"]:
                         btn_txt = "🔴 Disable" if u["is_active"] else "🟢 Enable"
                         if st.button(btn_txt, key=f"tog_{u['id']}"):
-                            conn2 = get_connection()
-                            if conn2:
-                                cur2 = conn2.cursor()
-                                cur2.execute("UPDATE users SET is_active=%s WHERE id=%s", (0 if u["is_active"] else 1, u["id"]))
-                                conn2.close()
+                            try:
+                                # 💡 [SUPABASE UPDATE] Toggle active status using Supabase Data API
+                                new_status = not u["is_active"]
+                                supabase.table("users").update({"is_active": new_status}).eq("id", u["id"]).execute()
                                 st.rerun()
+                            except Exception as e:
+                                st.error(f"Update failed: {e}")
                     else:
                         st.markdown('<div style="font-size:11px;color:#334155;font-family:JetBrains Mono,monospace;padding:12px 0;text-align:center;">YOU</div>', unsafe_allow_html=True)
 
