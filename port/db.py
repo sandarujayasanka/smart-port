@@ -18,7 +18,7 @@ DB_CONFIG = {
     "password": "AVNS_dsQHTSc114xvgwOErps",        
     "database": "defaultdb",
     "autocommit": True,
-    "ssl_disabled": True  # Boolean True එකක් ලෙසම ලබා දී ඇත
+    "ssl_ca": ""
 }
 
 def get_connection():
