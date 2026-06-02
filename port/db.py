@@ -17,7 +17,7 @@ DB_CONFIG = {
     "password": "AVNS_dsQHTSc114xvgwOErps",        
     "database": "defaultdb",
     "autocommit": True,
-    "ssl_mode": "REQUIRED" 
+    "ssl_verify_cert": False 
 }
 
 
