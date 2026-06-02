@@ -1,37 +1,23 @@
 """
-db.py  —  PostgreSQL connection helpers for Smart Port App (Supabase)
-Requires:  pip install psycopg2-binary bcrypt
+db.py  —  Supabase Data API connection helpers for Smart Port App
+Requires:  pip install supabase bcrypt
 """
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import streamlit as st
 import bcrypt
 import secrets
 from datetime import datetime, timedelta
-import streamlit as st
+from supabase import create_client, Client
 
-# Supabase එකට පැටලෙන්නේ නැති වෙන්න වෙන වෙනම පරාමිතීන් ලබා දීම
-DB_CONFIG = {
-    "host": "aws-0-ap-southeast-1.pooler.supabase.com",
-    "port": 6543,
-    "user": "postgres",  # මෙන්න මේකෙන් Project ID එක ඔටෝම අඳුනගන්නවා!
-    "password": "Smart_port123",
-    "database": "postgres"
-}
+# Supabase Credentials (100% Correct & Secured)
+SUPABASE_URL = "https://zmkrkrfdfjddlikziocg.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpta3JrcmZkZmpkZGxpa3ppb2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzOTcyMjgsImV4cCI6MjA5NTk3MzIyOH0.NdYjvvcI2dvYjtdD0mCK7jBnSO7rFMvd5M7YhlW2y8s"
 
-def get_connection():
+def get_supabase_client() -> Client:
     try:
-        # URI වෙනුවට පරාමිතීන් වෙන වෙනම ලබා දී සම්බන්ධ කිරීම
-        conn = psycopg2.connect(
-            host=DB_CONFIG["host"],
-            port=DB_CONFIG["port"],
-            user=DB_CONFIG["user"],
-            password=DB_CONFIG["password"],
-            database=DB_CONFIG["database"]
-        )
-        return conn
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
     except Exception as e:
-        st.error(f"Database connection failed: {e}")
+        st.error(f"Supabase API connection failed: {e}")
         return None
 
 def hash_password(plain: str) -> str:
@@ -43,119 +29,71 @@ def verify_password(plain: str, hashed: str) -> bool:
     except Exception:
         return False
 
-# Tables ටික සහ Default Admin ව සර්වර් එක ඇතුළේ ඔටෝම හදන Function එක
-def init_db():
-    conn = get_connection()
-    if not conn:
-        return
-    try:
-        cur = conn.cursor()
-        # Users Table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                full_name VARCHAR(255) NOT NULL,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                role VARCHAR(50) DEFAULT 'operator',
-                is_active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_login TIMESTAMP
-            );
-        """)
-        # Sessions Table
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS sessions (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                token VARCHAR(255) UNIQUE NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                expires_at TIMESTAMP NOT NULL
-            );
-        """)
-        
-        # Default Admin කෙනෙක් නැත්නම් ඔටෝම ඇතුළත් කිරීම
-        cur.execute("SELECT id FROM users WHERE email = 'admin@smartport.lk';")
-        if not cur.fetchone():
-            pw_hash = hash_password("admin123")
-            cur.execute(
-                "INSERT INTO users (full_name, email, password_hash, role) VALUES (%s, %s, %s, %s)",
-                ("System Administrator", "admin@smartport.lk", pw_hash, "admin")
-            )
-        conn.commit()
-    except Exception as e:
-        print(f"Init DB Error: {e}")
-    finally:
-        conn.close()
-
-# App එක Start වෙද්දීම Tables ටික රන් වෙනවා
-init_db()
-
 def register_user(full_name: str, email: str, password: str, role: str = "operator") -> dict:
     if role not in ("admin", "operator"):
         role = "operator"
 
-    conn = get_connection()
-    if not conn:
+    supabase = get_supabase_client()
+    if not supabase:
         return {"ok": False, "error": "Database unavailable"}
+    
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT id FROM users WHERE email = %s", (email.lower().strip(),))
-        if cur.fetchone():
+        # Email එක දැනටමත් තියෙනවාද බැලීම
+        res = supabase.table("users").select("id").eq("email", email.lower().strip()).execute()
+        if res.data:
             return {"ok": False, "error": "This email is already registered."}
+            
         pw_hash = hash_password(password)
-        cur.execute(
-            "INSERT INTO users (full_name, email, password_hash, role) VALUES (%s, %s, %s, %s) RETURNING id",
-            (full_name.strip(), email.lower().strip(), pw_hash, role)
-        )
-        user_id = cur.fetchone()[0]
-        conn.commit()
-        return {"ok": True, "user_id": user_id}
+        # අලුත් යූසර් ඇතුළත් කිරීම
+        insert_res = supabase.table("users").insert({
+            "full_name": full_name.strip(),
+            "email": email.lower().strip(),
+            "password_hash": pw_hash,
+            "role": role
+        }).execute()
+        
+        return {"ok": True, "user_id": insert_res.data[0]["id"]}
     except Exception as e:
         return {"ok": False, "error": str(e)}
-    finally:
-        conn.close()
 
 def login_user(email: str, password: str) -> dict:
-    conn = get_connection()
-    if not conn:
+    supabase = get_supabase_client()
+    if not supabase:
         return {"ok": False, "error": "Database unavailable"}
+        
     try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(
-            "SELECT id, full_name, email, password_hash, role, is_active FROM users WHERE email = %s",
-            (email.lower().strip(),)
-        )
-        user = cur.fetchone()
-        if not user:
+        res = supabase.table("users").select("*").eq("email", email.lower().strip()).execute()
+        if not res.data:
             return {"ok": False, "error": "No account found with that email."}
+            
+        user = res.data[0]
         if not user["is_active"]:
             return {"ok": False, "error": "Account is disabled. Contact your administrator."}
         if not verify_password(password, user["password_hash"]):
             return {"ok": False, "error": "Incorrect password."}
 
-        cur.execute("UPDATE users SET last_login = %s WHERE id = %s", (datetime.now(), user["id"]))
+        # Last Login Update කිරීම
+        supabase.table("users").update({"last_login": datetime.now().isoformat()}).eq("id", user["id"]).execute()
 
         token = secrets.token_hex(32)
-        expires = datetime.now() + timedelta(hours=8)
-        cur.execute(
-            "INSERT INTO sessions (user_id, token, expires_at) VALUES (%s, %s, %s)",
-            (user["id"], token, expires)
-        )
-        conn.commit()
+        expires = (datetime.now() + timedelta(hours=8)).isoformat()
+        
+        # Session එකක් සෑදීම
+        supabase.table("sessions").insert({
+            "user_id": user["id"],
+            "token": token,
+            "expires_at": expires
+        }).execute()
+        
         user.pop("password_hash")
-        return {"ok": True, "user": dict(user), "token": token}
+        return {"ok": True, "user": user, "token": token}
     except Exception as e:
         return {"ok": False, "error": str(e)}
-    finally:
-        conn.close()
 
 def logout_user(token: str):
-    conn = get_connection()
-    if conn:
+    supabase = get_supabase_client()
+    if supabase:
         try:
-            cur = conn.cursor()
-            cur.execute("DELETE FROM sessions WHERE token = %s", (token,))
-            conn.commit()
-        finally:
-            conn.close()
+            supabase.table("sessions").delete().eq("token", token).execute()
+        except Exception:
+            pass
