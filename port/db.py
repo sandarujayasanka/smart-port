@@ -9,7 +9,7 @@ import secrets
 from datetime import datetime, timedelta
 from supabase import create_client, Client
 
-# Supabase Credentials (100% Correct & Secured)
+# Supabase Credentials
 SUPABASE_URL = "https://zmkrkrfdfjddlikziocg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpta3JrcmZkZmpkZGxpa3ppb2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzOTcyMjgsImV4cCI6MjA5NTk3MzIyOH0.NdYjvvcI2dvYjtdD0mCK7jBnSO7rFMvd5M7YhlW2y8s"
 
@@ -29,6 +29,30 @@ def verify_password(plain: str, hashed: str) -> bool:
     except Exception:
         return False
 
+# ⚠️ [AUTO-FIX] පාස්වර්ඩ් ප්‍රශ්නය විසඳීම සඳහා Python මඟින්ම ඇඩ්මින්ව සෑදීම
+def fix_admin_account():
+    supabase = get_supabase_client()
+    if supabase:
+        try:
+            # 1. පරණ වැරදි ඇඩ්මින්ව ඩේටාබේස් එකෙන් මකා දැමීම
+            supabase.table("users").delete().eq("email", "admin@smartport.lk").execute()
+            
+            # 2. Python බ්ක්‍රිප්ට් මඟින්ම නිවැරදිව පාස්වර්ඩ් එක හෑෂ් කිරීම
+            pw_hash = hash_password("admin123")
+            
+            # 3. අලුත් ඇඩ්මින්ව නිවැරදිව ඇතුළත් කිරීම
+            supabase.table("users").insert({
+                "full_name": "System Administrator",
+                "email": "admin@smartport.lk",
+                "password_hash": pw_hash,
+                "role": "admin"
+            }).execute()
+        except Exception as e:
+            pass
+
+# ඇප් එක ලෝඩ් වෙද්දීම මේක එකපාරක් රන් වෙනවා
+fix_admin_account()
+
 def register_user(full_name: str, email: str, password: str, role: str = "operator") -> dict:
     if role not in ("admin", "operator"):
         role = "operator"
@@ -38,13 +62,11 @@ def register_user(full_name: str, email: str, password: str, role: str = "operat
         return {"ok": False, "error": "Database unavailable"}
     
     try:
-        # Email එක දැනටමත් තියෙනවාද බැලීම
         res = supabase.table("users").select("id").eq("email", email.lower().strip()).execute()
         if res.data:
             return {"ok": False, "error": "This email is already registered."}
             
         pw_hash = hash_password(password)
-        # අලුත් යූසර් ඇතුළත් කිරීම
         insert_res = supabase.table("users").insert({
             "full_name": full_name.strip(),
             "email": email.lower().strip(),
@@ -72,13 +94,11 @@ def login_user(email: str, password: str) -> dict:
         if not verify_password(password, user["password_hash"]):
             return {"ok": False, "error": "Incorrect password."}
 
-        # Last Login Update කිරීම
         supabase.table("users").update({"last_login": datetime.now().isoformat()}).eq("id", user["id"]).execute()
 
         token = secrets.token_hex(32)
         expires = (datetime.now() + timedelta(hours=8)).isoformat()
         
-        # Session එකක් සෑදීම
         supabase.table("sessions").insert({
             "user_id": user["id"],
             "token": token,
