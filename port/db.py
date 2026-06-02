@@ -1,16 +1,14 @@
 """
-db.py  —  MySQL connection helpers for Smart Port App
-Requires:  pip install mysql-connector-python bcrypt
+db.py  —  MySQL connection helpers for Smart Port App using PyMySQL
+Requires:  pip install pymysql bcrypt
 """
 
-import mysql.connector
-from mysql.connector import Error
+import pymysql
 import bcrypt
 import secrets
 from datetime import datetime, timedelta
 import streamlit as st
 
-# Aiven Cloud MySQL සඳහා නිවැරදිම සහ ස්ථාවරම Configuration එක
 DB_CONFIG = {
     "host":     "mysql-1938fbd-sandarujayasanka27-0cd3.h.aivencloud.com",
     "port":     27352,
@@ -18,15 +16,22 @@ DB_CONFIG = {
     "password": "AVNS_dsQHTSc114xvgwOErps",        
     "database": "defaultdb",
     "autocommit": True,
-    "ssl_disabled": True
+    "ssl": {"fake_user_to_force_ssl": True}  # PyMySQL වල Aiven SSL බාධාව මඟහරින ක්‍රමය
 }
 
 def get_connection():
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
+        conn = pymysql.connect(
+            host=DB_CONFIG["host"],
+            port=DB_CONFIG["port"],
+            user=DB_CONFIG["user"],
+            password=DB_CONFIG["password"],
+            database=DB_CONFIG["database"],
+            autocommit=DB_CONFIG["autocommit"],
+            ssl=DB_CONFIG["ssl"]
+        )
         return conn
-    except Error as e:
-        # වෙබ් පිටුවේම Error එක පෙන්වීමට සකසා ඇත
+    except Exception as e:
         st.error(f"Database connection failed: {e}")
         return None
 
@@ -47,7 +52,7 @@ def register_user(full_name: str, email: str, password: str, role: str = "operat
     if not conn:
         return {"ok": False, "error": "Database unavailable"}
     try:
-        cur = conn.cursor()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
         cur.execute("SELECT id FROM users WHERE email = %s", (email.lower().strip(),))
         if cur.fetchone():
             return {"ok": False, "error": "This email is already registered."}
@@ -57,7 +62,7 @@ def register_user(full_name: str, email: str, password: str, role: str = "operat
             (full_name.strip(), email.lower().strip(), pw_hash, role)
         )
         return {"ok": True, "user_id": cur.lastrowid}
-    except Error as e:
+    except Exception as e:
         return {"ok": False, "error": str(e)}
     finally:
         conn.close()
@@ -67,7 +72,7 @@ def login_user(email: str, password: str) -> dict:
     if not conn:
         return {"ok": False, "error": "Database unavailable"}
     try:
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(pymysql.cursors.DictCursor)
         cur.execute(
             "SELECT id, full_name, email, password_hash, role, is_active FROM users WHERE email = %s",
             (email.lower().strip(),)
@@ -90,7 +95,7 @@ def login_user(email: str, password: str) -> dict:
         )
         user.pop("password_hash")
         return {"ok": True, "user": user, "token": token}
-    except Error as e:
+    except Exception as e:
         return {"ok": False, "error": str(e)}
     finally:
         conn.close()
