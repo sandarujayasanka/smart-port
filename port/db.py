@@ -10,12 +10,25 @@ import secrets
 from datetime import datetime, timedelta
 import streamlit as st
 
-# Supabase Connection String එක (Password එක ඇතුළත් කර ඇත)
-DB_URI = "postgresql://postgres:Smart_port123@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?options=-c%20project=zmkrkrfdfjddlikziocg"
+# Supabase එකට පැටලෙන්නේ නැති වෙන්න වෙන වෙනම පරාමිතීන් ලබා දීම
+DB_CONFIG = {
+    "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+    "port": 6543,
+    "user": "postgres.zmkrkrfdfjddlikziocg",  # මෙන්න මේකෙන් Project ID එක ඔටෝම අඳුනගන්නවා!
+    "password": "Smart_port123",
+    "database": "postgres"
+}
 
 def get_connection():
     try:
-        conn = psycopg2.connect(DB_URI)
+        # URI වෙනුවට පරාමිතීන් වෙන වෙනම ලබා දී සම්බන්ධ කිරීම
+        conn = psycopg2.connect(
+            host=DB_CONFIG["host"],
+            port=DB_CONFIG["port"],
+            user=DB_CONFIG["user"],
+            password=DB_CONFIG["password"],
+            database=DB_CONFIG["database"]
+        )
         return conn
     except Exception as e:
         st.error(f"Database connection failed: {e}")
