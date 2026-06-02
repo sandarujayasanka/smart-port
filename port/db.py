@@ -10,6 +10,7 @@ import secrets
 from datetime import datetime, timedelta
 import streamlit as st
 
+# Aiven Cloud MySQL සඳහා නිවැරදිම සහ ස්ථාවරම Configuration එක
 DB_CONFIG = {
     "host":     "mysql-1938fbd-sandarujayasanka27-0cd3.h.aivencloud.com",
     "port":     27352,
@@ -17,22 +18,20 @@ DB_CONFIG = {
     "password": "AVNS_dsQHTSc114xvgwOErps",        
     "database": "defaultdb",
     "autocommit": True,
-    "ssl_disabled": True
+    "ssl_disabled": True  # Boolean True එකක් ලෙසම ලබා දී ඇත
 }
-
 
 def get_connection():
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         return conn
     except Error as e:
+        # වෙබ් පිටුවේම Error එක පෙන්වීමට සකසා ඇත
         st.error(f"Database connection failed: {e}")
         return None
 
-
 def hash_password(plain: str) -> str:
     return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(rounds=12)).decode()
-
 
 def verify_password(plain: str, hashed: str) -> bool:
     try:
@@ -40,9 +39,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     except Exception:
         return False
 
-
 def register_user(full_name: str, email: str, password: str, role: str = "operator") -> dict:
-    # Only allow valid roles
     if role not in ("admin", "operator"):
         role = "operator"
 
@@ -64,7 +61,6 @@ def register_user(full_name: str, email: str, password: str, role: str = "operat
         return {"ok": False, "error": str(e)}
     finally:
         conn.close()
-
 
 def login_user(email: str, password: str) -> dict:
     conn = get_connection()
@@ -98,7 +94,6 @@ def login_user(email: str, password: str) -> dict:
         return {"ok": False, "error": str(e)}
     finally:
         conn.close()
-
 
 def logout_user(token: str):
     conn = get_connection()
