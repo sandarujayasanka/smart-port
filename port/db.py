@@ -11,11 +11,11 @@ from datetime import datetime, timedelta
 import streamlit as st
 
 DB_CONFIG = {
-    "host":     "51.161.87.124",
-    "port":     3306,
-    "user":     "eventrol_port_user",
-    "password": "port_2026",          # XAMPP default — blank
-    "database": "eventrol_smart_port_db",
+    "host":     "mysql-1938fbd-sandarujayasanka27-0cd3.h.aivencloud.com",
+    "port":     27352,
+    "user":     "avnadmin",
+    "password": "AVNS_dsQHTSc114xvgwOErps",        
+    "database": "defaultdb",
     "autocommit": True,
 }
 
