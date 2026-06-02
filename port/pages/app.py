@@ -4,7 +4,7 @@ import numpy as np
 import streamlit as st
 import time
 import platform
-from db import register_user, get_connection
+from db import register_user, get_supabase_client
 
 # --- SESSION CHECK ---
 if "logged_in" not in st.session_state or not st.session_state.logged_in:
