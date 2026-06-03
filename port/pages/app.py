@@ -179,7 +179,8 @@ if is_admin:
         supabase = get_supabase_client()
         if supabase:
             try:
-                res = supabase.table("users").select("id, full_name, email, role, is_active, last_login").order("created_at", descending=True).execute()
+                # ✅ ඩවුන්ග්‍රේඩ් කරපු හෝ වෙනස් වුණු Supabase Version එකට ගැළපෙන විදිහට 'desc=True' ලෙස වෙනස් කර ඇත.
+                res = supabase.table("users").select("id, full_name, email, role, is_active, last_login").order("created_at", desc=True).execute()
                 all_users = res.data
             except Exception as e:
                 st.error(f"Failed to fetch users: {e}")
