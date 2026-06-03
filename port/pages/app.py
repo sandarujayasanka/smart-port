@@ -109,7 +109,7 @@ else:
     tab_yard, tab_settings = st.tabs(["📹  Yard Monitor", "⚙️  Settings"])
 
 # ══════════════════════════
-#  SETTINGS TAB
+#  SETTINGS TAB (Updated for Ngrok/Localhost Flexibility)
 # ══════════════════════════
 with tab_settings:
     st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
@@ -118,34 +118,21 @@ with tab_settings:
     st.markdown("""
     <div class="ip-card">
         <div style="font-size:13px; color:#94a3b8; margin-bottom:12px; font-family:'JetBrains Mono',monospace;">
-            📡 &nbsp;Enter the IP address of your phone/camera running the IP Webcam app.<br>
-            <span style="color:#475569; font-size:11px;">Format: &nbsp;<span style="color:#38bdf8;">http://&lt;IP&gt;:8080/video</span></span>
+            📡 &nbsp;<b>Exhibition Mode (Ngrok URL):</b> Paste the complete HTTPS forwarding URL from Ngrok terminal.<br>
+            💻 &nbsp;<b>Localhost Mode:</b> Use the local IP Webcam stream format directly.<br>
+            <span style="color:#475569; font-size:11px;">Example: &nbsp;<span style="color:#38bdf8;">https://xxxx.ngrok-free.app/video</span> &nbsp;or&nbsp; <span style="color:#38bdf8;">http://172.20.10.1:8080/video</span></span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    default_ip = st.session_state.get("camera_ip", "172.20.10.1")
-    col_ip, col_port = st.columns([3, 1])
-    with col_ip:
-        input_ip = st.text_input("Camera IP Address", value=default_ip, placeholder="172.20.10.1", key="ip_input")
-    with col_port:
-        input_port = st.text_input("Port", value=st.session_state.get("camera_port", "8080"), placeholder="8080", key="port_input")
-
-    input_path = st.text_input("Stream Path", value=st.session_state.get("camera_path", "/live"), placeholder="/live", key="path_input")
-
-    constructed_url = f"http://{input_ip}:{input_port}{input_path}"
-    st.markdown(f"""
-    <div style="background:#042f4b; border:1px solid #0284c7; border-radius:8px; padding:10px 16px; margin:8px 0 16px; font-family:'JetBrains Mono',monospace; font-size:13px; color:#38bdf8;">
-        🔗 &nbsp;Stream URL: &nbsp;<strong>{constructed_url}</strong>
-    </div>
-    """, unsafe_allow_html=True)
+    # single input box එකක් හැදුවා මුළු URL එකම කෙලින්ම පේස්ට් කරන්න ලේසි වෙන්න
+    default_url = st.session_state.get("camera_url", "http://172.20.10.1:8080/video")
+    input_url = st.text_input("Camera Stream URL (Ngrok or Local IP)", value=default_url, placeholder="https://your-ngrok.ngrok-free.app/video", key="camera_url_input")
 
     if st.button("💾  Save Camera Settings", key="btn_save_ip"):
-        st.session_state["camera_ip"] = input_ip
-        st.session_state["camera_port"] = input_port
-        st.session_state["camera_path"] = input_path
-        st.session_state["camera_url"] = constructed_url
-        st.markdown(f'<div class="success-msg">✅ &nbsp;Camera URL saved: <strong>{constructed_url}</strong></div>', unsafe_allow_html=True)
+        st.session_state["camera_url"] = input_url
+        st.markdown(f'<div class="success-msg">✅ &nbsp;Camera URL saved successfully!</div>', unsafe_allow_html=True)
+        st.rerun()
 
 # ══════════════════════════
 #  ADMIN — USER MANAGEMENT
@@ -179,7 +166,6 @@ if is_admin:
         supabase = get_supabase_client()
         if supabase:
             try:
-                # ✅ ඩවුන්ග්‍රේඩ් කරපු හෝ වෙනස් වුණු Supabase Version එකට ගැළපෙන විදිහට 'desc=True' ලෙස වෙනස් කර ඇත.
                 res = supabase.table("users").select("id, full_name, email, role, is_active, last_login").order("created_at", desc=True).execute()
                 all_users = res.data
             except Exception as e:
@@ -235,10 +221,10 @@ with tab_yard:
         st.markdown('<div class="section-label" style="padding-top:12px">Traffic Alerts</div>', unsafe_allow_html=True)
         alert_box = st.empty()
 
-        cam_url = st.session_state.get("camera_url", "http://172.20.10.1:8080/live")
+        cam_url = st.session_state.get("camera_url", "http://172.20.10.1:8080/video")
         st.markdown(f"""
         <div style="background:#0a1628; border:1px solid #1e3a5f; border-radius:8px; padding:8px 12px; margin-top:8px;">
-            <div style="font-size:11px; color:#38bdf8; font-family:'JetBrains Mono'; word-break:break-all;">🔗 {cam_url}</div>
+            <div style="font-size:11px; color:#38bdf8; font-family:'JetBrains Mono'; word-break:break-all;">🔗 Current Target: {cam_url}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -248,6 +234,7 @@ with tab_yard:
 
     aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
     parameters = aruco.DetectorParameters()
+    detector = aruco.ArucoDetector(aruco_dict, parameters) # OpenCV 4.7+ සහ Python 3.14 වෙනුවෙන් අලුත් කළා
 
     total_slots = {
         1: {"name": "Slot A1", "lane": "Lane A1"},
@@ -268,14 +255,24 @@ with tab_yard:
         else:
             print('\a', end='', flush=True)
 
-    camera_url = st.session_state.get("camera_url", "http://172.20.10.1:8080/live")
-    cap = cv2.VideoCapture(camera_url)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-    if not cap.isOpened():
-        st.error(f"⚠️ Camera feed unavailable. Hotspot IP Checked. URL: {camera_url}")
+    camera_url = st.session_state.get("camera_url", "http://172.20.10.1:8080/video")
+    
+    # --- SAFE CAMERA INIT (Streamlit Cloud එක Freeze වීම වැළැක්වීම) ---
+    try:
+        cap = cv2.VideoCapture(camera_url)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        
+        if not cap.isOpened():
+            with col_video:
+                st.warning(f"⚠️ Camera feed offline. Dashboard running in Mock/Static mode. URL: {camera_url}")
+                st.info("💡 Exhibition Tip: Open 'Settings' tab and paste the latest Ngrok URL to activate Live Tracking.")
+            st.stop()
+    except Exception as cam_err:
+        with col_video:
+            st.error(f"❌ Camera Connection Error: {cam_err}")
         st.stop()
 
+    # --- VIDEO PROCESSING LOOP ---
     blink_state = True
     while cap.isOpened():
         ret, frame = cap.read()
@@ -285,7 +282,7 @@ with tab_yard:
 
         current_time = time.time()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        corners, ids, _ = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+        corners, ids, _ = detector.detectMarkers(gray) # Python 3.14 සඳහා අලුත් ක්‍රමය
 
         visible_ids = []
         slot_positions = {}
