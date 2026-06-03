@@ -68,7 +68,7 @@ html, body, [class*="css"] { font-family: 'Sora', sans-serif; }
 user = st.session_state.user
 is_admin = user["role"] == "admin"
 
-# --- HEADER with Sign Out (top right, sticky) ---
+# --- HEADER with Sign Out ---
 role_color = "#a78bfa" if is_admin else "#4ade80"
 role_label = "ADMIN" if is_admin else "OPERATOR"
 
@@ -109,7 +109,7 @@ else:
     tab_yard, tab_settings = st.tabs(["📹  Yard Monitor", "⚙️  Settings"])
 
 # ══════════════════════════
-#  SETTINGS TAB — Camera IP
+#  SETTINGS TAB
 # ══════════════════════════
 with tab_settings:
     st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
@@ -119,37 +119,19 @@ with tab_settings:
     <div class="ip-card">
         <div style="font-size:13px; color:#94a3b8; margin-bottom:12px; font-family:'JetBrains Mono',monospace;">
             📡 &nbsp;Enter the IP address of your phone/camera running the IP Webcam app.<br>
-            <span style="color:#475569; font-size:11px;">Format: &nbsp;<span style="color:#38bdf8;">http://&lt;IP&gt;:8080/video</span> &nbsp;— port 8080 is default for IP Webcam (Android)</span>
+            <span style="color:#475569; font-size:11px;">Format: &nbsp;<span style="color:#38bdf8;">http://&lt;IP&gt;:8080/video</span></span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    default_ip = st.session_state.get("camera_ip", "10.45.151.62")
-
+    default_ip = st.session_state.get("camera_ip", "172.20.10.1")
     col_ip, col_port = st.columns([3, 1])
     with col_ip:
-        input_ip = st.text_input(
-            "Camera IP Address",
-            value=default_ip,
-            placeholder="192.168.1.100",
-            key="ip_input",
-            help="IPv4 address of your phone on the local network"
-        )
+        input_ip = st.text_input("Camera IP Address", value=default_ip, placeholder="172.20.10.1", key="ip_input")
     with col_port:
-        input_port = st.text_input(
-            "Port",
-            value=st.session_state.get("camera_port", "8080"),
-            placeholder="8080",
-            key="port_input"
-        )
+        input_port = st.text_input("Port", value=st.session_state.get("camera_port", "8080"), placeholder="8080", key="port_input")
 
-    input_path = st.text_input(
-        "Stream Path",
-        value=st.session_state.get("camera_path", "/video"),
-        placeholder="/video",
-        key="path_input",
-        help="Default path for IP Webcam is /video"
-    )
+    input_path = st.text_input("Stream Path", value=st.session_state.get("camera_path", "/live"), placeholder="/live", key="path_input")
 
     constructed_url = f"http://{input_ip}:{input_port}{input_path}"
     st.markdown(f"""
@@ -164,18 +146,6 @@ with tab_settings:
         st.session_state["camera_path"] = input_path
         st.session_state["camera_url"] = constructed_url
         st.markdown(f'<div class="success-msg">✅ &nbsp;Camera URL saved: <strong>{constructed_url}</strong></div>', unsafe_allow_html=True)
-
-    st.markdown('<div style="height:24px"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Slot & Truck Configuration</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="ip-card">
-        <div style="font-size:13px; color:#475569; font-family:'JetBrains Mono',monospace;">
-            ℹ️ &nbsp;ArUco marker IDs 1–4 are mapped to Slots A1, A2, B1, B2.<br>
-            IDs 5–6 are mapped to TRUCK-01 and TRUCK-02.<br>
-            <span style="color:#334155; font-size:11px;">To change marker assignments, edit the <span style="color:#f59e0b;">total_slots</span> and <span style="color:#f59e0b;">TRUCK_IDS</span> dicts in the source code.</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 # ══════════════════════════
 #  ADMIN — USER MANAGEMENT
@@ -192,7 +162,7 @@ if is_admin:
         with c2:
             role_options = {"Operator": "operator", "Administrator": "admin"}
             new_role = role_options[st.selectbox("Role", options=list(role_options.keys()), key="new_role")]
-            new_password = st.text_input("Temporary Password", type="password", placeholder="Min 8 chars, 1 uppercase, 1 number", key="new_password")
+            new_password = st.text_input("Temporary Password", type="password", placeholder="Min 8 chars", key="new_password")
 
         if st.button("➕  Create User", key="btn_create"):
             if not new_name or not new_email or not new_password:
@@ -200,13 +170,12 @@ if is_admin:
             else:
                 result = register_user(new_name, new_email, new_password, new_role)
                 if result["ok"]:
-                    create_msg.markdown(f'<div class="success-msg">✅ &nbsp;User <b>{new_name}</b> created as {new_role}.</div>', unsafe_allow_html=True)
+                    create_msg.markdown(f'<div class="success-msg">✅ &nbsp;User <b>{new_name}</b> created.</div>', unsafe_allow_html=True)
                 else:
                     create_msg.markdown(f'<div class="error-msg">❌ &nbsp;{result["error"]}</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="section-label" style="padding-top:24px">All Users</div>', unsafe_allow_html=True)
 
-        # 💡 [SUPABASE UPDATE] Get users list using Supabase client API
         supabase = get_supabase_client()
         if supabase:
             try:
@@ -219,7 +188,7 @@ if is_admin:
             for u in all_users:
                 rc = "#a78bfa" if u["role"] == "admin" else "#4ade80"
                 rl = "ADMIN" if u["role"] == "admin" else "OPERATOR"
-                active_badge = '<span style="background:#052e16;color:#4ade80;border:1px solid #166534;padding:2px 8px;border-radius:20px;font-size:11px;font-family:JetBrains Mono,monospace;">ACTIVE</span>' if u["is_active"] else '<span style="background:#1c0505;color:#f87171;border:1px solid #7f1d1d;padding:2px 8px;border-radius:20px;font-size:11px;font-family:JetBrains Mono,monospace;">DISABLED</span>'
+                active_badge = '<span style="background:#052e16;color:#4ade80;border:1px solid #166534;padding:2px 8px;border-radius:20px;font-size:11px;">ACTIVE</span>' if u["is_active"] else '<span style="background:#1c0505;color:#f87171;border:1px solid #7f1d1d;padding:2px 8px;border-radius:20px;font-size:11px;">DISABLED</span>'
                 last = str(u["last_login"])[:16] if u["last_login"] else "Never logged in"
 
                 col_info, col_action = st.columns([4, 1])
@@ -227,13 +196,10 @@ if is_admin:
                     st.markdown(f"""
                     <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:8px;padding:12px 16px;margin-bottom:4px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <span style="font-size:14px;font-weight:600;color:#f1f5f9;">{u['full_name']}</span>
-                                &nbsp; {active_badge}
-                            </div>
-                            <span style="color:{rc};font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:600;">{rl}</span>
+                            <div><b>{u['full_name']}</b> &nbsp; {active_badge}</div>
+                            <span style="color:{rc};font-size:12px;font-family:'JetBrains Mono'; font-weight:600;">{rl}</span>
                         </div>
-                        <div style="font-size:12px;color:#475569;font-family:'JetBrains Mono',monospace;margin-top:4px;">{u['email']} &nbsp;·&nbsp; Last login: {last}</div>
+                        <div style="font-size:12px;color:#475569;margin-top:4px;">{u['email']} &nbsp;·&nbsp; Last login: {last}</div>
                     </div>
                     """, unsafe_allow_html=True)
                 with col_action:
@@ -241,14 +207,12 @@ if is_admin:
                         btn_txt = "🔴 Disable" if u["is_active"] else "🟢 Enable"
                         if st.button(btn_txt, key=f"tog_{u['id']}"):
                             try:
-                                # 💡 [SUPABASE UPDATE] Toggle active status using Supabase Data API
-                                new_status = not u["is_active"]
-                                supabase.table("users").update({"is_active": new_status}).eq("id", u["id"]).execute()
+                                supabase.table("users").update({"is_active": not u["is_active"]}).eq("id", u["id"]).execute()
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Update failed: {e}")
                     else:
-                        st.markdown('<div style="font-size:11px;color:#334155;font-family:JetBrains Mono,monospace;padding:12px 0;text-align:center;">YOU</div>', unsafe_allow_html=True)
+                        st.markdown('<div style="font-size:11px;color:#334155;text-align:center;padding-top:12px;">YOU</div>', unsafe_allow_html=True)
 
 # ══════════════════════════
 #  YARD MONITOR
@@ -261,34 +225,24 @@ with tab_yard:
         avail_placeholder = st.empty()
         st.markdown('<div class="section-label">Yard Metrics</div>', unsafe_allow_html=True)
         col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            free_metric = st.empty()
-        with col_m2:
-            occupied_metric = st.empty()
+        with col_m1: free_metric = st.empty()
+        with col_m2: occupied_metric = st.empty()
         st.markdown('<div class="section-label" style="padding-top:12px">Slot Status</div>', unsafe_allow_html=True)
         slot_table = st.empty()
         st.markdown('<div class="section-label" style="padding-top:12px">Truck Tracker</div>', unsafe_allow_html=True)
         truck_tracker = st.empty()
         st.markdown('<div class="section-label" style="padding-top:12px">Traffic Alerts</div>', unsafe_allow_html=True)
         alert_box = st.empty()
-        st.markdown('<div style="height:20px"></div>', unsafe_allow_html=True)
 
-        # Camera URL status display inside yard tab
-        cam_url = st.session_state.get("camera_url", "http://10.45.151.62:8080/video")
+        cam_url = st.session_state.get("camera_url", "http://172.20.10.1:8080/live")
         st.markdown(f"""
         <div style="background:#0a1628; border:1px solid #1e3a5f; border-radius:8px; padding:8px 12px; margin-top:8px;">
-            <div style="font-size:10px; color:#475569; font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:1px;">Camera Feed</div>
-            <div style="font-size:11px; color:#38bdf8; font-family:'JetBrains Mono',monospace; margin-top:3px; word-break:break-all;">{cam_url}</div>
-            <div style="font-size:10px; color:#334155; font-family:'JetBrains Mono',monospace; margin-top:2px;">Change in ⚙️ Settings tab</div>
+            <div style="font-size:11px; color:#38bdf8; font-family:'JetBrains Mono'; word-break:break-all;">🔗 {cam_url}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col_video:
-        st.markdown("""
-        <div class="video-container">
-            <div class="video-label"><span class="live-dot"></span>&nbsp; LIVE DRONE / CAMERA FEED &nbsp;—&nbsp; YARD OVERHEAD VIEW</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown('<div class="video-container"><div class="video-label"><span class="live-dot"></span> LIVE OVERHEAD VIEW</div></div>', unsafe_allow_html=True)
         video_frame = st.empty()
 
     aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
@@ -313,20 +267,16 @@ with tab_yard:
         else:
             print('\a', end='', flush=True)
 
-    # Use saved camera URL or default
-    camera_url = st.session_state.get("camera_url", "http://10.45.151.62:8080/video")
+    camera_url = st.session_state.get("camera_url", "http://172.20.10.1:8080/live")
     cap = cv2.VideoCapture(camera_url)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-    cap.set(cv2.CAP_PROP_FPS, 30)
 
     if not cap.isOpened():
-        st.error(f"⚠️ Camera feed unavailable. Check IP in ⚙️ Settings tab. URL: {camera_url}")
+        st.error(f"⚠️ Camera feed unavailable. Hotspot IP Checked. URL: {camera_url}")
         st.stop()
 
     blink_state = True
     while cap.isOpened():
-        cap.grab()
-        cap.grab()
         ret, frame = cap.read()
         if not ret:
             st.error("⚠️ Camera feed lost.")
@@ -348,13 +298,9 @@ with tab_yard:
                 center_y = int(c[:, 1].mean())
                 if marker_id in TRUCK_IDS:
                     detected_trucks_this_frame[marker_id] = (center_x, center_y)
-                    c_int = c.astype(int)
-                    cv2.polylines(frame, [c_int], True, (0, 165, 255), 3)
-                    cv2.putText(frame, TRUCK_IDS[marker_id]["label"], (c_int[0][0], c_int[0][1] - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2, cv2.LINE_AA)
+                    cv2.polylines(frame, [c.astype(int)], True, (0, 165, 255), 3)
                 elif marker_id in total_slots:
                     slot_positions[marker_id] = (center_x, center_y)
-                    aruco.drawDetectedMarkers(frame, corners, ids)
 
         current_blocked_lanes = []
         for truck_id, data in TRUCK_IDS.items():
@@ -364,54 +310,40 @@ with tab_yard:
                 for slot_id, pos in slot_positions.items():
                     dist = np.sqrt((tx - pos[0])**2 + (ty - pos[1])**2)
                     if dist < min_distance:
-                        min_distance = dist
-                        closest_slot = slot_id
+                        min_distance = dist; closest_slot = slot_id
                 if closest_slot is not None:
                     data["last_lane"] = total_slots[closest_slot]["lane"]
                 if abs(tx - data["last_x"]) < 15 and abs(ty - data["last_y"]) < 15:
-                    if data["still_start"] is None:
-                        data["still_start"] = current_time
-                        data["status"] = "slowing"
+                    if data["still_start"] is None: data["still_start"] = current_time; data["status"] = "slowing"
                     elif current_time - data["still_start"] > 3.0:
                         data["status"] = "blocked"
                         alert_entry = f"{data['label']} blocking {data['last_lane']}"
-                        if alert_entry not in current_blocked_lanes:
-                            current_blocked_lanes.append(alert_entry)
+                        if alert_entry not in current_blocked_lanes: current_blocked_lanes.append(alert_entry)
                 else:
-                    data["still_start"] = None
-                    data["status"] = "moving"
-                data["last_x"] = tx
-                data["last_y"] = ty
+                    data["still_start"] = None; data["status"] = "moving"
+                data["last_x"] = tx; data["last_y"] = ty
             else:
-                data["still_start"] = None
-                data["status"] = "offline"
+                data["still_start"] = None; data["status"] = "offline"
 
         free_count, occupied_count, yard_status = 0, 0, {}
         for slot_id, info in total_slots.items():
             if slot_id in visible_ids:
-                yard_status[info["name"]] = "free"
-                free_count += 1
+                yard_status[info["name"]] = "free"; free_count += 1
             else:
-                yard_status[info["name"]] = "occupied"
-                occupied_count += 1
+                yard_status[info["name"]] = "occupied"; occupied_count += 1
 
         blink_state = not blink_state
         if free_count > 0:
             dot = "🟢" if blink_state else "⚫"
-            avail_placeholder.markdown(f'<div class="avail-banner avail-free">{dot} &nbsp;{free_count} SPACE{"S" if free_count > 1 else ""} AVAILABLE</div>', unsafe_allow_html=True)
+            avail_placeholder.markdown(f'<div class="avail-banner avail-free">{dot} &nbsp;{free_count} SPACE AVAILABLE</div>', unsafe_allow_html=True)
         else:
             avail_placeholder.markdown('<div class="avail-banner avail-full">🔴 &nbsp;YARD FULL — NO SPACE</div>', unsafe_allow_html=True)
 
-        free_metric.markdown(f'<div class="metric-card"><div class="label">Free Slots</div><div class="value green">{free_count}</div><div class="sub">of {len(total_slots)}</div></div>', unsafe_allow_html=True)
-        occupied_metric.markdown(f'<div class="metric-card"><div class="label">Occupied</div><div class="value {"red" if occupied_count == len(total_slots) else "amber"}">{occupied_count}</div><div class="sub">of {len(total_slots)}</div></div>', unsafe_allow_html=True)
+        free_metric.markdown(f'<div class="metric-card"><div class="label">Free Slots</div><div class="value green">{free_count}</div></div>', unsafe_allow_html=True)
+        occupied_metric.markdown(f'<div class="metric-card"><div class="label">Occupied</div><div class="value red">{occupied_count}</div></div>', unsafe_allow_html=True)
 
-        slot_rows = "".join([f'<div class="slot-row"><span class="slot-name">{n}</span><span class="status-pill {"status-free" if s=="free" else "status-occupied"}">{"FREE" if s=="free" else "OCCUPIED"}</span></div>' for n, s in yard_status.items()])
+        slot_rows = "".join([f'<div class="slot-row"><span class="slot-name">{n}</span><span class="status-pill {"status-free" if s=="free" else "status-occupied"}">{s.upper()}</span></div>' for n, s in yard_status.items()])
         slot_table.markdown(f'<div style="background:#111827;border:1px solid #1e3a5f;border-radius:10px;padding:4px 16px;">{slot_rows}</div>', unsafe_allow_html=True)
-
-        sc = {"moving": "#22c55e", "blocked": "#ef4444", "slowing": "#f59e0b", "offline": "#475569"}
-        sl = {"moving": "● MOVING", "blocked": "■ BLOCKED", "slowing": "◐ SLOWING", "offline": "○ OFFLINE"}
-        truck_cards = "".join([f'<div class="truck-card"><div class="truck-id">{d["label"]}</div><div class="truck-lane">{d["last_lane"]}</div><div style="color:{sc.get(d["status"],"#475569")};font-family:JetBrains Mono,monospace;font-size:11px;margin-top:4px;">{sl.get(d["status"],"UNKNOWN")}</div></div>' for d in TRUCK_IDS.values()])
-        truck_tracker.markdown(truck_cards, unsafe_allow_html=True)
 
         if current_blocked_lanes:
             alert_box.markdown("".join([f'<div class="alert-danger">🚨 &nbsp;BLOCKED: {a}</div>' for a in current_blocked_lanes]), unsafe_allow_html=True)
